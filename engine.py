@@ -1,15 +1,33 @@
 import tcod as libtcod
 
+from render_functions import render_all, clear_all
+from entity import Entity
+from map_objects.game_map import GameMap
 from input_handlers import handle_keys
 
 def main():
     # Setting the screen size
     screen_width = 80
     screen_height = 50
+    map_width = 80
+    map_height = 45
 
-    # Variables to keep track of player position
-    player_x = int(screen_width/2)
-    player_y = int(screen_height/2)
+    colors = {
+        'dark_wall': libtcod.Color(169, 169, 169),
+        'dark_ground': libtcod.Color(107, 75, 65),
+        'npc_dt': libtcod.Color(11, 102, 35)
+    }
+
+
+    # Spawn entities
+    player = Entity(int(screen_width / 2), int(screen_height / 2 ), "@", libtcod.white)
+    npc_dt = Entity(int(screen_width / 2 - 5), int(screen_height / 2 ), "@", colors.get('npc_dt'))
+
+    # Store entities
+    entities = [
+        player, 
+        npc_dt
+        ]
 
     # Telling libtcod which font to use. We read the font details from the arial10x10.png file that we saved down.
     # The other two parts are telling libtcod which type of file we're reading.
@@ -22,6 +40,9 @@ def main():
     # Define console
     con = libtcod.console_new(screen_width, screen_height)
 
+    # Generate a game map
+    game_map = GameMap(map_width, map_height)
+
     # Variables to hold our keyboard and mouse inputs.
     key = libtcod.Key()
     mouse = libtcod.Mouse()
@@ -33,24 +54,15 @@ def main():
         # This updates the key variable with the user input but doesn't actually do anything with it yet.
         libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS, key, mouse)
 
-        # Provides the font color for our foreground, which is our '@' symbol.
-        # The first arguement is the console we're drawing to.
-        libtcod.console_set_default_foreground(con, libtcod.white)
-
-        # The first argument is the console we're printing to again.
-        # The second and third arguments are x and y coordinates for where to draw.
-        # The third argument is what to draw.
-        # The fourth argument sets the background to none.
-        libtcod.console_put_char(con, player_x, player_y, "@", libtcod.BKGND_NONE)
-        
-        # This part actually draws our symbol.
-        libtcod.console_blit(con, 0, 0, screen_width, screen_height, 0, 0, 0)
+        # Render our entities
+        render_all(con, entities, game_map, screen_width, screen_height, colors)
 
         # This line presents everything on the screen.
         libtcod.console_flush()
-
-        # Removes the trailing '@' symbol when we move (so that we don't create a snake).
-        libtcod.console_put_char(con, player_x, player_y, ' ', libtcod.BKGND_NONE)
+        
+        # Clears previous characters from the screen. This stops us from creating
+        # a snake on the screen while we move.
+        clear_all(con, entities)
 
         # Use the handle_keys function that we created to translate our key press into an action.
         action = handle_keys(key)
@@ -64,9 +76,12 @@ def main():
         if move:
             # Set dx and dy values to our move coordinates.
             dx, dy = move
-            # Update player (x,y) position using (dx,dy).
-            player_x += dx
-            player_y += dy
+
+            # Check whether the move location is blocked.
+            if not game_map.is_blocked(player.x + dx, player.y + dy):
+
+                # Update player (x,y) position using (dx,dy).
+                player.move(dx, dy)
 
         # Exit the game if that was the action taken by the user.
         if exit:
