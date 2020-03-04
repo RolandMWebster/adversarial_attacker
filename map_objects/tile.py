@@ -10,3 +10,6 @@ class Tile:
             block_sight = blocked
         
         self.block_sight = block_sight
+
+        # boolean for whether the tile has been explored by the player - defaults to False
+        self.explored = False
