@@ -1,9 +1,10 @@
 import tcod as libtcod
 
 from render_functions import render_all, clear_all
-from entity import Entity
+from entity import Entity, get_blocking_entities_at_location
 from fov_functions import initialize_fov, recompute_fov
 from map_objects.game_map import GameMap
+from game_states import GameStates
 from input_handlers import handle_keys
 
 
@@ -22,6 +23,8 @@ def main():
     fov_light_walls = True
     fov_radius = 10
 
+    max_monsters_per_room = 3
+
     colors = {
         'dark_wall': libtcod.Color(0, 0, 100),
         'dark_ground': libtcod.Color(50, 50, 150),
@@ -33,15 +36,11 @@ def main():
     }
 
 
-    # Spawn entities
-    player = Entity(int(screen_width / 2), int(screen_height / 2 ), "@", libtcod.white)
-    npc_dt = Entity(int(screen_width / 2 - 5), int(screen_height / 2 ), "@", colors.get('npc_dt'))
+    # spawn player
+    player = Entity(0, 0, '@', libtcod.white, name = 'Player', blocks=True)
 
-    # store entities
-    entities = [
-        player, 
-        npc_dt
-        ]
+    # initialize entities with the player in it
+    entities = [player]
 
     # telling libtcod which font to use. We read the font details from the arial10x10.png file that we saved down.
     # the other two parts are telling libtcod which type of file we're reading.
@@ -56,7 +55,7 @@ def main():
 
     # generate a game map
     game_map = GameMap(map_width, map_height)
-    game_map.make_map(max_rooms, room_min_size, room_max_size, map_width, map_height, player)
+    game_map.make_map(max_rooms, room_min_size, room_max_size, map_width, map_height, player, entities, max_monsters_per_room)
     
     # boolean to determine whether the field of view needs to be computed
     # it is True by default because we need to compute it when the game starts
@@ -67,6 +66,9 @@ def main():
     # variables to hold our keyboard and mouse inputs
     key = libtcod.Key()
     mouse = libtcod.Mouse()
+
+    # variable to store the game state
+    game_state = GameStates.PLAYERS_TURN
 
     # this begins what's called our 'game loop'. This won't end until we close the game
     while not libtcod.console_is_window_closed():
@@ -101,20 +103,32 @@ def main():
         fullscreen = action.get('fullscreen')
 
         # carry out our movement action if it exists
-        if move:
+        if move and game_state == GameStates.PLAYERS_TURN:
             # set dx and dy values to our move coordinates
             dx, dy = move
+            destination_x = player.x + dx
+            destination_y = player.y + dy
 
             # check whether the move location is blocked
-            if not game_map.is_blocked(player.x + dx, player.y + dy):
+            if not game_map.is_blocked(destination_x, destination_y):
+                # check whethere there is a blocking entity in our destination
+                target = get_blocking_entities_at_location(entities, destination_x, destination_y)
 
-                # update player (x,y) position using (dx,dy)
-                player.move(dx, dy)
+                # if so, kick it
+                if target:
+                    print('You kick the ' + target.name + ' in the shins, much to its annoyance!')
 
-                # we need to update the fov since our player has moved
-                fov_recompute = True
+                else:
 
-        # exit the game if that was the action taken by the user
+                    # update player (x,y) position using (dx,dy)
+                    player.move(dx, dy)
+
+                    # we need to update the fov since our player has moved
+                    fov_recompute = True
+                
+                game_state = GameStates.ENEMY_TURN
+
+         # exit the game if that was the action taken by the user
         if exit:
             return True
 
@@ -122,7 +136,14 @@ def main():
         if fullscreen:
             libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen()) 
         
-        
+
+        if game_state == GameStates.ENEMY_TURN:
+            for entity in entities:
+                if entity != player:
+                    print('The ' + entity.name + ' ponders the meaning of its existence.')
+            
+            game_state = GameStates.PLAYERS_TURN
+
 
 if __name__ == '__main__':
     main()
