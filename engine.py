@@ -6,6 +6,7 @@ from render_functions import render_all, clear_all, RenderOrder
 from entity import Entity, get_blocking_entities_at_location
 from fov_functions import initialize_fov, recompute_fov
 from map_objects.game_map import GameMap
+from game_messages import MessageLog
 from game_states import GameStates
 from input_handlers import handle_keys
 
@@ -14,8 +15,17 @@ def main():
     # Setting the screen size
     screen_width = 80
     screen_height = 50
+
+    bar_width = 20
+    panel_height = 7
+    panel_y = screen_height - panel_height
+
+    message_x = bar_width + 2
+    message_width = screen_width - bar_width - 2
+    message_height = panel_height - 1
+
     map_width = 80
-    map_height = 45
+    map_height = 43
 
     room_max_size = 10
     room_min_size = 6
@@ -57,6 +67,9 @@ def main():
     # define console
     con = libtcod.console_new(screen_width, screen_height)
 
+    # define panel
+    panel = libtcod.console_new(screen_width, panel_height)
+
     # generate a game map
     game_map = GameMap(map_width, map_height)
     game_map.make_map(max_rooms, room_min_size, room_max_size, map_width, map_height, player, entities, max_monsters_per_room)
@@ -66,6 +79,9 @@ def main():
     fov_recompute = True
 
     fov_map = initialize_fov(game_map)
+
+    # start our message log
+    message_log = MessageLog(message_x, message_width, message_height)
 
     # variables to hold our keyboard and mouse inputs
     key = libtcod.Key()
@@ -79,14 +95,15 @@ def main():
 
         # this line captures new events (inputs from the user)
         # this updates the key variable with the user input but doesn't actually do anything with it yet
-        libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS, key, mouse)
+        libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
 
         # recompute field of view if required
         if fov_recompute:
             recompute_fov(fov_map, player.x, player.y, fov_radius, fov_light_walls, fov_algorithm)
 
-        # render our entities
-        render_all(con, entities, player, game_map, fov_map, fov_recompute, screen_width, screen_height, colors)
+        # render everything
+        render_all(con, panel, entities, player, game_map, fov_map, fov_recompute, message_log,
+                   screen_width, screen_height, bar_width, panel_height, panel_y, mouse, colors)
 
         # do not recompute fov by default - only if the player moves
         fov_recompute = False
@@ -149,7 +166,7 @@ def main():
             dead_entity = player_turn_result.get('dead')
 
             if message:
-                print('message')
+                message_log.add_message(message)
 
             # handle something dying
             if dead_entity:
@@ -161,7 +178,7 @@ def main():
                 else:
                     message = kill_monster(dead_entity)
 
-                print(message)
+                message_log.add_message(message)
 
           
 
@@ -176,7 +193,7 @@ def main():
                         dead_entity = enemy_turn_result.get('dead')
 
                         if message:
-                            print(message)
+                            message_log.add_message(message)
 
                         if dead_entity:
                             
@@ -185,7 +202,7 @@ def main():
                             else:
                                 message = kill_monster(dead_entity)
 
-                            print(message)
+                            message_log.add_message(message)
 
                             if game_state == GameStates.PLAYER_DEAD:
                                 break
