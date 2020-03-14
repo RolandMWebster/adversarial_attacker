@@ -28,7 +28,7 @@ class Inventory:
     def use(self, item_entity, **kwargs):
         results = []
 
-        item_component = item.entity.item
+        item_component = item_entity.item
 
         if item_component.use_function is None:
             results.append({'message': Message('The {0} cannot be used.'.format(item_entity.name), libtcod.yellow)})
@@ -38,7 +38,7 @@ class Inventory:
 
             for item_use_result in item_use_results:
                 if item_use_result.get('consumed'):
-                    self.remove_item(item_identity)
+                    self.remove_item(item_entity)
 
             results.extend(item_use_results)
 
