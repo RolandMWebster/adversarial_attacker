@@ -1,7 +1,57 @@
 import tcod as libtcod
 
+from game_states import GameStates
 
-def handle_keys(key):
+
+def handle_keys(key, game_state):
+    if game_state == GameStates.PLAYERS_TURN:
+        return handle_player_turn_keys(key)
+    elif game_state == GameStates.PLAYER_DEAD:
+        return handle_player_dead_keys(key)
+    elif game_state in (GameStates.SHOW_INVENTORY, GameStates.DROP_INVENTORY):
+        return handle_inventory_keys(key)
+
+
+    return {}
+
+def handle_inventory_keys(key):
+
+    # We're converting the key pressed to an index. 'a' will be 0, 'b' will be 1, and so on.
+    # This allows us to select an item out of the iventory in engine.py. All it needs is the index,
+    # it doesn't need to know anything about the item, which is why we do this.
+    index = key.c - ord('a')
+
+    if index >= 0:
+        return {'inventory_index': index}
+
+    if key.vk == libtcod.KEY_ENTER and key.lalt:
+        # Alt+Enter: toggle full screen
+        return {'fullscreen': True}
+    elif key.vk == libtcod.KEY_ESCAPE:
+        # Exit the menu
+        return {'exit': True}
+
+    return {}
+
+
+def handle_player_dead_keys(key):
+    key_char = chr(key.c)
+
+    if key_char == 'i':
+        return {'show_inventory': True}
+
+    if key.vk == libtcod.KEY_ENTER and key.lalt:
+        # Alt+Enter: toggle full screen
+        return {'fullscreen': True}
+
+    elif key.vk == libtcod.KEY_ESCAPE:
+        # Exit the menu
+        return {'exit': True}
+
+    return {}
+
+
+def handle_player_turn_keys(key):
     '''
     Handles transforming key presses into actions with our game. This works by returning a 
     dictionary that is dependant on the key pressed by the user.
@@ -27,6 +77,14 @@ def handle_keys(key):
     elif key_char == 'n':
         return {'move': (1, 1)}
 
+    if key_char == 'g':
+        return {'pickup': True}
+
+    elif key_char == 'i':
+        return {'show_inventory': True}
+
+    elif key_char == 'd':
+        return {'drop_inventory': True}
 
     # Fullscreening the game
     if key.vk == libtcod.KEY_ENTER and key.lalt:

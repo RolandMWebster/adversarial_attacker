@@ -4,6 +4,11 @@ import tcod as libtcod
 
 from enum import Enum
 
+from game_states import GameStates
+
+from menus import inventory_menu
+
+
 class RenderOrder(Enum):
     CORPSE = 1
     ITEM = 2
@@ -38,7 +43,7 @@ def render_bar(panel, x, y, total_width, name, value, maximum, bar_color, back_c
 
 
 def render_all(con, panel, entities, player, game_map, fov_map, fov_recompute, message_log, screen_width, screen_height, 
-               bar_width, panel_height, panel_y, mouse, colors):
+               bar_width, panel_height, panel_y, mouse, colors, game_state):
     
     if fov_recompute:
 
@@ -91,10 +96,21 @@ def render_all(con, panel, entities, player, game_map, fov_map, fov_recompute, m
         # sort our health bar
         render_bar(panel, 1, 1, bar_width, 'HP', player.fighter.hp, player.fighter.max_hp, libtcod.light_red, libtcod.darker_red)
 
+        # show mouse hover
         libtcod.console_set_default_foreground(panel, libtcod.light_gray)
-        libtcod.console_print_ex(panel, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, get_names_under_mouse(mouse, entities, fov_map))
+        libtcod.console_print_ex(panel, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, 
+                                 get_names_under_mouse(mouse, entities, fov_map))
 
         libtcod.console_blit(panel, 0, 0, screen_width, panel_height, 0, 0, panel_y)
+
+        # inventory stuff
+        if game_state in (GameStates.SHOW_INVENTORY, GameStates.DROP_INVENTORY):
+            if game_state == GameStates.SHOW_INVENTORY:
+                inventory_title = 'Press the key next to an item to use it, or Esc to cancel.'
+            else:
+                inventory_title = 'Press the key next to an item to drop it, or Esc to cancel.\n'
+
+            inventory_menu(con, inventory_title, player.inventory, 50, screen_width, screen_height)
 
 def clear_all(con, entities):
     # clears all entities
