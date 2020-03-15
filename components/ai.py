@@ -1,5 +1,9 @@
 import tcod as libtcod
 
+from random import randint
+
+from game_messages import Message
+
 class BasicMonster:
     def take_turn(self, target, fov_map, game_map, entities):
 
@@ -28,7 +32,7 @@ class ConfusedMonster:
 
         if self.number_of_turns > 0:
             random_x = self.owner.x + randint(0, 2) - 1
-            random_y = self.onwer.y + randint(0, 2) - 1
+            random_y = self.owner.y + randint(0, 2) - 1
 
             if random_x != self.owner.x and random_y != self.owner.y:
                 self.owner.move_towards(random_x, random_y, game_map, entities)
@@ -40,4 +44,3 @@ class ConfusedMonster:
 
         return results
 
-        
