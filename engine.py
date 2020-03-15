@@ -8,7 +8,7 @@ from fov_functions import initialize_fov, recompute_fov
 from map_objects.game_map import GameMap
 from game_messages import Message, MessageLog
 from game_states import GameStates
-from input_handlers import handle_keys
+from input_handlers import handle_keys, handle_mouse
 from components.inventory import Inventory
 
 
@@ -38,7 +38,7 @@ def main():
     fov_radius = 10
 
     max_monsters_per_room = 3
-    max_items_per_room = 2
+    max_items_per_room = 20
 
     colors = {
         'dark_wall': libtcod.Color(0, 0, 100),
@@ -99,6 +99,12 @@ def main():
     game_state = GameStates.PLAYERS_TURN
     previous_game_state = game_state
     
+    # this is for targeting items:
+    # the engine needs to remember which item we selected when we swap the game state to TARGETING
+    # we can store the targeting_item so that the engine can recall it when actually using the item
+    targeting_item = None
+
+
     # this begins what's called our 'game loop'. This won't end until we close the game
     while not libtcod.console_is_window_closed():
 
@@ -127,6 +133,9 @@ def main():
         # use the handle_keys function that we created to translate our key press into an action
         action = handle_keys(key, game_state)
 
+        # use the handle mouse function to  translate our mouse action into a game action
+        mouse_action = handle_mouse(mouse)
+
         # grab our actions (if they exist)
         move = action.get('move')
         pickup = action.get('pickup')
@@ -135,6 +144,10 @@ def main():
         inventory_index = action.get('inventory_index')        
         exit = action.get('exit')
         fullscreen = action.get('fullscreen')
+
+        left_click = mouse_action.get('left_click')
+        right_click = mouse_action.get('right_click')
+        
 
         # initialize the results of the upcoming turn
         player_turn_results = []
@@ -191,14 +204,29 @@ def main():
             item = player.inventory.items[inventory_index]
 
             if game_state == GameStates.SHOW_INVENTORY:
-                player_turn_results.extend(player.inventory.use(item))
+                player_turn_results.extend(player.inventory.use(item, entities=entities, fov_map=fov_map))
             elif game_state == GameStates.DROP_INVENTORY:
                 player_turn_results.extend(player.inventory.drop_item(item))
         
-         # exit the game if that was the action taken by the user
+
+        if game_state == GameStates.TARGETING:
+            if left_click:
+                target_x, target_y = left_click
+
+                item_use_results = player.inventory.use(targeting_item, entities = entities, fov_map = fov_map,
+                                                        target_x=target_x, target_y=target_y)
+
+                player_turn_results.extend(item_use_results)
+            elif right_click:
+                player_turn_results.append({'targeting_cancelled': True})
+
+
+         # exit commands
         if exit:
             if game_state in (GameStates.SHOW_INVENTORY, GameStates.DROP_INVENTORY):
                 game_state = previous_game_state
+            elif game_state == GameStates.TARGETING:
+                player_turn_results.append({'targeting_cancelled': True})
             else:
                 return True
 
@@ -212,6 +240,8 @@ def main():
             item_added = player_turn_result.get('item_added')
             item_consumed = player_turn_result.get('consumed')
             item_dropped = player_turn_result.get('item_dropped')
+            targeting = player_turn_result.get('targeting')
+            targeting_cancelled = player_turn_result.get('targeting_cancelled')
 
             if message:
                 message_log.add_message(message)
@@ -243,6 +273,18 @@ def main():
 
                 game_state = GameStates.ENEMY_TURN
 
+            if targeting:
+                previous_game_state = GameStates.PLAYERS_TURN
+                game_state = GameStates.TARGETING
+
+                targeting_item = targeting
+
+                message_log.add_message(targeting_item.item.targeting_message)
+
+            if targeting_cancelled:
+                game_state = previous_game_state
+
+                message_log.add_message(Message('Targeting cancelled'))
 
         # let the enemies have their turn
         if game_state == GameStates.ENEMY_TURN:
