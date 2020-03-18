@@ -265,3 +265,7 @@ def main():
             play_game(player, entities, game_map, message_log, game_state, con, panel, constants)
 
             show_main_menu = True
+
+
+if __name__ == '__main__':
+    main()
